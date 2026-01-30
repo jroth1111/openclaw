@@ -27,14 +27,27 @@ services:
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
-        if [ ! -f /home/node/.openclaw/openclaw.json ]; then
-          node - <<'NODE'
-          const fs = require("fs");
-          const dir = "/home/node/.openclaw";
-          const filePath = dir + "/openclaw.json";
-          fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+        node - <<'NODE'
+        const fs = require("fs");
+        const JSON5 = require("json5");
+
+        const dir = "/home/node/.openclaw";
+        const filePath = dir + "/openclaw.json";
+        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+
+        let valid = false;
+        if (fs.existsSync(filePath)) {
+          try {
+            JSON5.parse(fs.readFileSync(filePath, "utf8"));
+            valid = true;
+          } catch {
+            valid = false;
+          }
+        }
+
+        if (!valid) {
           const data = {
-            env: { ZAI_API_KEY: "$${ZAI_API_KEY}" },
+            env: { ZAI_API_KEY: process.env.ZAI_API_KEY || "" },
             gateway: { mode: "local" },
             models: {
               providers: {
@@ -51,8 +64,9 @@ services:
           };
           fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n");
           fs.chmodSync(filePath, 0o600);
+          console.log("[openclaw] wrote fresh openclaw.json");
+        }
         NODE
-        fi
         exec node dist/index.js gateway --bind "$$OPENCLAW_GATEWAY_BIND" --port "$$OPENCLAW_GATEWAY_PORT"
 
 volumes:
