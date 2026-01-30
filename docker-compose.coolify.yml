@@ -16,29 +16,25 @@ services:
       - openclaw-workspace:/home/node/.openclaw/workspace
     expose:
       - "${OPENCLAW_GATEWAY_PORT:-18789}"
+    user: "0"
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
-        mkdir -p /home/node/.openclaw
-        chown -R node:node /home/node/.openclaw
         if [ ! -f /home/node/.openclaw/openclaw.json ]; then
-          su node -s /bin/sh -c 'node -e "const fs = require(\"fs\");\
+          node -e "const fs = require(\"fs\");\
         const dir = \"/home/node/.openclaw\";\
         const filePath = dir + \"/openclaw.json\";\
         fs.mkdirSync(dir, { recursive: true, mode: 0o700 });\
         const data = {\
           env: { ZAI_API_KEY: \"$${ZAI_API_KEY}\" },\
+          gateway: { mode: \"local\" },\
           models: {\
             providers: {\
               zai: {\
@@ -53,9 +49,9 @@ services:
           agents: { defaults: { model: { primary: \"zai/glm-4.7\" } } }\
         };\
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + \"\\\\n\");\
-        fs.chmodSync(filePath, 0o600);"'
+        fs.chmodSync(filePath, 0o600);"
         fi
-        exec su node -s /bin/sh -c 'exec node dist/index.js gateway --bind "$$OPENCLAW_GATEWAY_BIND" --port "$$OPENCLAW_GATEWAY_PORT"'
+        exec node dist/index.js gateway --bind "$$OPENCLAW_GATEWAY_BIND" --port "$$OPENCLAW_GATEWAY_PORT"
 
 volumes:
   openclaw-config:
