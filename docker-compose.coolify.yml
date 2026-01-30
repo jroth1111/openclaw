@@ -1,0 +1,57 @@
+services:
+  openclaw-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      HOME: /home/node
+      TERM: xterm-256color
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_GATEWAY_BIND: ${OPENCLAW_GATEWAY_BIND:-lan}
+      OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
+      OPENCLAW_GATEWAY_TOKEN: ${OPENCLAW_GATEWAY_TOKEN:?set_in_coolify}
+      ZAI_API_KEY: ${ZAI_API_KEY:?set_in_coolify}
+    volumes:
+      - openclaw-config:/home/node/.openclaw
+      - openclaw-workspace:/home/node/.openclaw/workspace
+    expose:
+      - "${OPENCLAW_GATEWAY_PORT:-18789}"
+    user: "node"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    entrypoint: ["/bin/sh", "-lc"]
+    command:
+      - |
+        if [ ! -f /home/node/.openclaw/openclaw.json ]; then
+          node -e 'const fs = require("fs");
+        const dir = "/home/node/.openclaw";
+        const filePath = dir + "/openclaw.json";
+        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+        const data = {
+          env: { ZAI_API_KEY: "$${ZAI_API_KEY}" },
+          models: {
+            providers: {
+              zai: {
+                baseUrl: "https://api.z.ai/api/coding/paas/v4",
+                api: "openai-completions",
+                auth: "api-key",
+                authHeader: true,
+                models: [{ id: "glm-4.7", name: "GLM-4.7" }]
+              }
+            }
+          },
+          agents: { defaults: { model: { primary: "zai/glm-4.7" } } }
+        };
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\\n");
+        fs.chmodSync(filePath, 0o600);'
+        fi
+        exec node dist/index.js gateway --bind "$${OPENCLAW_GATEWAY_BIND:-lan}" --port "$${OPENCLAW_GATEWAY_PORT:-18789}"
+
+volumes:
+  openclaw-config:
+  openclaw-workspace:
