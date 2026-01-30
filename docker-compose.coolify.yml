@@ -28,28 +28,30 @@ services:
     command:
       - |
         if [ ! -f /home/node/.openclaw/openclaw.json ]; then
-          node -e "const fs = require(\"fs\");\
-        const dir = \"/home/node/.openclaw\";\
-        const filePath = dir + \"/openclaw.json\";\
-        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });\
-        const data = {\
-          env: { ZAI_API_KEY: \"$${ZAI_API_KEY}\" },\
-          gateway: { mode: \"local\" },\
-          models: {\
-            providers: {\
-              zai: {\
-                baseUrl: \"https://api.z.ai/api/coding/paas/v4\",\
-                api: \"openai-completions\",\
-                auth: \"api-key\",\
-                authHeader: true,\
-                models: [{ id: \"glm-4.7\", name: \"GLM-4.7\" }]\
-              }\
-            }\
-          },\
-          agents: { defaults: { model: { primary: \"zai/glm-4.7\" } } }\
-        };\
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + \"\\\\n\");\
-        fs.chmodSync(filePath, 0o600);"
+          node - <<'NODE'
+          const fs = require("fs");
+          const dir = "/home/node/.openclaw";
+          const filePath = dir + "/openclaw.json";
+          fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+          const data = {
+            env: { ZAI_API_KEY: "$${ZAI_API_KEY}" },
+            gateway: { mode: "local" },
+            models: {
+              providers: {
+                zai: {
+                  baseUrl: "https://api.z.ai/api/coding/paas/v4",
+                  api: "openai-completions",
+                  auth: "api-key",
+                  authHeader: true,
+                  models: [{ id: "glm-4.7", name: "GLM-4.7" }],
+                },
+              },
+            },
+            agents: { defaults: { model: { primary: "zai/glm-4.7" } } },
+          };
+          fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n");
+          fs.chmodSync(filePath, 0o600);
+        NODE
         fi
         exec node dist/index.js gateway --bind "$$OPENCLAW_GATEWAY_BIND" --port "$$OPENCLAW_GATEWAY_PORT"
 
