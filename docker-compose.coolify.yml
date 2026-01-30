@@ -16,41 +16,46 @@ services:
       - openclaw-workspace:/home/node/.openclaw/workspace
     expose:
       - "${OPENCLAW_GATEWAY_PORT:-18789}"
-    user: "node"
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
+        mkdir -p /home/node/.openclaw
+        chown -R node:node /home/node/.openclaw
         if [ ! -f /home/node/.openclaw/openclaw.json ]; then
-          node -e 'const fs = require("fs");
-        const dir = "/home/node/.openclaw";
-        const filePath = dir + "/openclaw.json";
-        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-        const data = {
-          env: { ZAI_API_KEY: "$${ZAI_API_KEY}" },
-          models: {
-            providers: {
-              zai: {
-                baseUrl: "https://api.z.ai/api/coding/paas/v4",
-                api: "openai-completions",
-                auth: "api-key",
-                authHeader: true,
-                models: [{ id: "glm-4.7", name: "GLM-4.7" }]
-              }
-            }
-          },
-          agents: { defaults: { model: { primary: "zai/glm-4.7" } } }
-        };
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\\n");
-        fs.chmodSync(filePath, 0o600);'
+          su node -s /bin/sh -c 'node -e "const fs = require(\"fs\");\
+        const dir = \"/home/node/.openclaw\";\
+        const filePath = dir + \"/openclaw.json\";\
+        fs.mkdirSync(dir, { recursive: true, mode: 0o700 });\
+        const data = {\
+          env: { ZAI_API_KEY: \"$${ZAI_API_KEY}\" },\
+          models: {\
+            providers: {\
+              zai: {\
+                baseUrl: \"https://api.z.ai/api/coding/paas/v4\",\
+                api: \"openai-completions\",\
+                auth: \"api-key\",\
+                authHeader: true,\
+                models: [{ id: \"glm-4.7\", name: \"GLM-4.7\" }]\
+              }\
+            }\
+          },\
+          agents: { defaults: { model: { primary: \"zai/glm-4.7\" } } }\
+        };\
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + \"\\\\n\");\
+        fs.chmodSync(filePath, 0o600);"'
         fi
-        exec node dist/index.js gateway --bind "$${OPENCLAW_GATEWAY_BIND:-lan}" --port "$${OPENCLAW_GATEWAY_PORT:-18789}"
+        exec su node -s /bin/sh -c 'exec node dist/index.js gateway --bind "$$OPENCLAW_GATEWAY_BIND" --port "$$OPENCLAW_GATEWAY_PORT"'
 
 volumes:
   openclaw-config:
