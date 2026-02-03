@@ -9,6 +9,18 @@ CONFIG_FILE="$OPENCLAW_STATE/openclaw.json"
 WORKSPACE_DIR="/root/openclaw-workspace"
 TOKEN_FILE="$OPENCLAW_STATE/.gateway_token"
 
+# Validate and fix bind value (must be: loopback, lan, tailnet, auto, or custom)
+# Docker/Coolify deployments should use "lan" for all interfaces
+case "${OPENCLAW_GATEWAY_BIND:-}" in
+  loopback|lan|tailnet|auto|custom)
+    # Valid value, keep it
+    ;;
+  0.0.0.0|*)
+    # Invalid or empty, default to "lan"
+    export OPENCLAW_GATEWAY_BIND="lan"
+    ;;
+esac
+
 # Create directories
 mkdir -p "$OPENCLAW_STATE" "$WORKSPACE_DIR"
 chmod 700 "$OPENCLAW_STATE"
@@ -44,7 +56,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "gateway": {
     "mode": "local",
     "port": ${OPENCLAW_GATEWAY_PORT:-28471},
-    "bind": "${OPENCLAW_GATEWAY_BIND:-lan}",
+    "bind": "$OPENCLAW_GATEWAY_BIND",
     "auth": {
       "mode": "token",
       "token": "$OPENCLAW_GATEWAY_TOKEN"
