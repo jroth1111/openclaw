@@ -43,12 +43,13 @@ fi
 export OPENCLAW_GATEWAY_TOKEN
 
 # ----------------------------
-# Generate Config with ZAI Provider
+# Generate/Fix Config with ZAI Provider
 # ----------------------------
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "[openclaw] Generating openclaw.json..."
-  
-  cat > "$CONFIG_FILE" <<EOF
+# Always regenerate config to ensure valid values
+# (prevents issues with stale/invalid configs)
+echo "[openclaw] Generating openclaw.json..."
+
+cat > "$CONFIG_FILE" <<EOF
 {
   "env": {
     "ZAI_API_KEY": "${ZAI_API_KEY:-}" 
@@ -56,7 +57,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   "gateway": {
     "mode": "local",
     "port": ${OPENCLAW_GATEWAY_PORT:-28471},
-    "bind": "$OPENCLAW_GATEWAY_BIND",
+    "bind": "lan",
     "auth": {
       "mode": "token",
       "token": "$OPENCLAW_GATEWAY_TOKEN"
@@ -85,9 +86,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
 }
 EOF
 
-  chmod 600 "$CONFIG_FILE"
-  echo "[openclaw] Config ready at $CONFIG_FILE"
-fi
+chmod 600 "$CONFIG_FILE"
+echo "[openclaw] Config ready at $CONFIG_FILE"
 
 # ----------------------------
 # Banner & Access Info
