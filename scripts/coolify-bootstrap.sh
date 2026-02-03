@@ -107,6 +107,6 @@ echo "=================================================================="
 # ----------------------------
 # Run OpenClaw Gateway
 # ----------------------------
-# Note: Using 'openclaw gateway run' which reads config from file
+# Note: Using node directly since openclaw is built from source
 # Config is generated above with correct bind/port values
-exec openclaw gateway run
+exec node dist/index.js gateway
