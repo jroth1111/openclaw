@@ -22,15 +22,16 @@ esac
 mkdir -p "$OPENCLAW_STATE" "$WORKSPACE_DIR"
 chmod 700 "$OPENCLAW_STATE"
 
-# Create CLI symlinks
-if [ ! -f /usr/local/bin/openclaw ]; then
-  ln -sf /app/dist/index.js /usr/local/bin/openclaw
-  chmod +x /usr/local/bin/openclaw
+# Create CLI symlinks (in /root/bin to avoid permission issues)
+mkdir -p /root/bin
+if [ ! -f /root/bin/openclaw ]; then
+  ln -sf /app/dist/index.js /root/bin/openclaw
 fi
+export PATH="/root/bin:$PATH"
 
 # Create openclaw-approve helper
-if [ ! -f /usr/local/bin/openclaw-approve ]; then
-  cat > /usr/local/bin/openclaw-approve <<'HELPER'
+if [ ! -f /root/bin/openclaw-approve ]; then
+  cat > /root/bin/openclaw-approve <<'HELPER'
 #!/bin/bash
 echo "Approving all pending device requests..."
 openclaw devices list --json 2>/dev/null | node -e "
@@ -48,7 +49,7 @@ pending.forEach(d => {
 console.log('Approved', pending.length, 'device(s)');
 " 2>/dev/null || echo "No pending devices or command failed"
 HELPER
-  chmod +x /usr/local/bin/openclaw-approve
+  chmod +x /root/bin/openclaw-approve
 fi
 
 # ----------------------------
