@@ -11,7 +11,7 @@ services:
 
       # Optional with defaults
       - OPENCLAW_GATEWAY_PORT=${OPENCLAW_GATEWAY_PORT:-28471}
-      - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-0.0.0.0}
+      - OPENCLAW_GATEWAY_BIND=${OPENCLAW_GATEWAY_BIND:-lan}
       - NODE_ENV=production
       - HOME=/home/node
       - TERM=xterm-256color
