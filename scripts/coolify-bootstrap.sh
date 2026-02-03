@@ -25,6 +25,36 @@ esac
 mkdir -p "$OPENCLAW_STATE" "$WORKSPACE_DIR"
 chmod 700 "$OPENCLAW_STATE"
 
+# Create openclaw symlink for CLI access
+if [ ! -f /usr/local/bin/openclaw ]; then
+  ln -sf /app/dist/index.js /usr/local/bin/openclaw
+  chmod +x /usr/local/bin/openclaw
+fi
+
+# Create openclaw-approve helper
+if [ ! -f /usr/local/bin/openclaw-approve ]; then
+  cat > /usr/local/bin/openclaw-approve <<'HELPER'
+#!/bin/bash
+# Auto-approve all pending pairing requests
+echo "Approving all pending device requests..."
+openclaw devices list --json 2>/dev/null | node -e "
+const data = require('fs').readFileSync(0, 'utf8');
+const devices = JSON.parse(data || '[]');
+const pending = devices.filter(d => d.status === 'pending');
+if (pending.length === 0) {
+  console.log('No pending requests.');
+  process.exit(0);
+}
+pending.forEach(d => {
+  console.log('Approving:', d.id);
+  require('child_process').execSync('openclaw devices approve ' + d.id);
+});
+console.log('Approved', pending.length, 'device(s)');
+" 2>/dev/null || echo "No pending devices or command failed"
+HELPER
+  chmod +x /usr/local/bin/openclaw-approve
+fi
+
 # ----------------------------
 # Gateway Token Persistence
 # ----------------------------
