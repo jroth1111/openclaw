@@ -19,15 +19,17 @@ services:
     volumes:
       - openclaw-data:/home/node/.openclaw
 
-    # Security hardening
+    # NOTE: Running as root due to Coolify volume permission behavior.
+    # Coolify creates volumes as root, causing EACCES for non-root users.
+    # See: https://github.com/coollabsio/coolify/issues/2873
+    # Security trade-off accepted for compatibility.
+    user: "0"
+
+    # Security hardening (limited by root requirement)
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    tmpfs:
-      - /tmp:size=512M,noexec,nosuid,nodev
-      - /var/tmp:size=256M,noexec,nosuid,nodev
-      - /run:size=128M,noexec,nosuid,nodev
 
     # Healthcheck
     healthcheck:
@@ -83,44 +85,44 @@ services:
           fi
         fi
 
-        # ZAI config generation (required - no built-in defaults)
-        node - <<'NODE'
-        const fs = require("fs");
-        const dir = "/home/node/.openclaw";
-        const filePath = dir + "/openclaw.json";
+        # ZAI config generation
+        node -e "
+        const fs = require('fs');
+        const dir = '/home/node/.openclaw';
+        const filePath = dir + '/openclaw.json';
         fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
 
         let existing = null;
         if (fs.existsSync(filePath)) {
           try {
-            existing = JSON.parse(fs.readFileSync(filePath, "utf8"));
+            existing = JSON.parse(fs.readFileSync(filePath, 'utf8'));
           } catch (e) {
-            console.log("[openclaw] Warning: existing config invalid, regenerating");
+            console.log('[openclaw] Warning: existing config invalid, regenerating');
           }
         }
 
         const data = {
           ...(existing || {}),
-          env: { ...(existing?.env || {}), ZAI_API_KEY: process.env.ZAI_API_KEY || "" },
-          gateway: { mode: "local", ...(existing?.gateway || {}) },
+          env: { ...(existing?.env || {}), ZAI_API_KEY: process.env.ZAI_API_KEY || '' },
+          gateway: { mode: 'local', ...(existing?.gateway || {}) },
           models: {
             providers: {
               zai: {
-                baseUrl: "https://api.z.ai/api/coding/paas/v4",
-                api: "openai-completions",
-                auth: "api-key",
+                baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+                api: 'openai-completions',
+                auth: 'api-key',
                 authHeader: true,
-                models: [{ id: "glm-4.7", name: "GLM-4.7" }],
+                models: [{ id: 'glm-4.7', name: 'GLM-4.7' }],
               },
             },
           },
-          agents: { defaults: { model: { primary: "zai/glm-4.7" } } },
+          agents: { defaults: { model: { primary: 'zai/glm-4.7' } } },
         };
 
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + "\n");
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n');
         fs.chmodSync(filePath, 0o600);
-        console.log("[openclaw] Config ready at " + filePath);
-        NODE
+        console.log('[openclaw] Config ready at ' + filePath);
+        "
 
         exec node dist/index.js gateway --bind "$$OPENCLAW_GATEWAY_BIND" --port "$$OPENCLAW_GATEWAY_PORT"
 
