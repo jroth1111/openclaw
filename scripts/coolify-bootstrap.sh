@@ -49,45 +49,45 @@ export OPENCLAW_GATEWAY_TOKEN
 # (prevents issues with stale/invalid configs)
 echo "[openclaw] Generating openclaw.json..."
 
-cat > "$CONFIG_FILE" <<EOF
-{
-  "env": {
-    "ZAI_API_KEY": "${ZAI_API_KEY:-}" 
+# Use node to generate valid JSON (avoids shell heredoc quote issues)
+node -e "
+const fs = require('fs');
+const config = {
+  env: {
+    ZAI_API_KEY: process.env.ZAI_API_KEY || ''
   },
-  "gateway": {
-    "mode": "local",
-    "port": ${OPENCLAW_GATEWAY_PORT:-28471},
-    "bind": "lan",
-    "auth": {
-      "mode": "token",
-      "token": "$OPENCLAW_GATEWAY_TOKEN"
+  gateway: {
+    mode: 'local',
+    port: parseInt(process.env.OPENCLAW_GATEWAY_PORT) || 28471,
+    bind: 'lan',
+    auth: {
+      mode: 'token',
+      token: process.env.OPENCLAW_GATEWAY_TOKEN
     }
   },
-  "models": {
-    "providers": {
-      "zai": {
-        "baseUrl": "https://api.z.ai/api/coding/paas/v4",
-        "api": "openai-completions",
-        "auth": "api-key",
-        "authHeader": true,
-        "models": [
-          { "id": "glm-4.7", "name": "GLM-4.7" }
-        ]
+  models: {
+    providers: {
+      zai: {
+        baseUrl: 'https://api.z.ai/api/coding/paas/v4',
+        api: 'openai-completions',
+        auth: 'api-key',
+        authHeader: true,
+        models: [{ id: 'glm-4.7', name: 'GLM-4.7' }]
       }
     }
   },
-  "agents": {
-    "defaults": {
-      "model": {
-        "primary": "zai/glm-4.7"
+  agents: {
+    defaults: {
+      model: {
+        primary: 'zai/glm-4.7'
       }
     }
   }
-}
-EOF
-
-chmod 600 "$CONFIG_FILE"
-echo "[openclaw] Config ready at $CONFIG_FILE"
+};
+fs.writeFileSync('$CONFIG_FILE', JSON.stringify(config, null, 2) + '\n');
+fs.chmodSync('$CONFIG_FILE', 0o600);
+console.log('[openclaw] Config ready at $CONFIG_FILE');
+"
 
 # ----------------------------
 # Banner & Access Info
