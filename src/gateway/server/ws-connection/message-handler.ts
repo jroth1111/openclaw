@@ -232,10 +232,13 @@ export function attachGatewayWsMessageHandler(params: {
   const isWebchatConnect = (p: ConnectParams | null | undefined) => isWebchatClient(p?.client);
 
   socket.on("message", async (data) => {
+    // DEBUG: Log every message received
+    console.error(`[WS-MSG] Message received, closed=${isClosed()}`);
     if (isClosed()) {
       return;
     }
     const text = rawDataToString(data);
+    console.error(`[WS-MSG] Parsed text length=${text.length}`);
     try {
       const parsed = JSON.parse(text);
       const frameType =
