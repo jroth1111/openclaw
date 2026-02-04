@@ -115,14 +115,17 @@ function matchesProxyEntry(ip: string, proxy: string): boolean {
   // Handle CIDR entries that may have been copy/pasted with ports (e.g., "192.168.0.0/16:1234")
   let cleanProxy = proxy.trim();
 
+  // For CIDR entries, strip any trailing port after the prefix length
   if (cleanProxy.includes("/")) {
     const slashIdx = cleanProxy.indexOf("/");
     const afterSlash = cleanProxy.slice(slashIdx + 1);
+    // If there's a colon after the slash, it's likely a port (e.g., "16:1234" -> "16")
     const colonIdx = afterSlash.indexOf(":");
     if (colonIdx !== -1) {
       cleanProxy = cleanProxy.slice(0, slashIdx + 1 + colonIdx);
     }
   } else {
+    // For non-CIDR entries, strip port normally
     cleanProxy = stripOptionalPort(cleanProxy);
   }
 
