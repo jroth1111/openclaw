@@ -31,7 +31,7 @@ This guide covers deploying OpenClaw Gateway on [Coolify](https://coolify.io/) u
 1. In Coolify dashboard, go to **Services** → **New Service Stack**
 2. Choose **Docker Compose** as Build Pack
 3. Name your service (e.g., `openclaw`)
-4. Paste the contents of `docker-compose.coolify.yml`
+4. The repository's `docker-compose.yml` is pre-configured for Coolify
 5. Click **Save**
 
 ### 2. Configure Environment Variables
@@ -119,7 +119,7 @@ For 8GB RAM / 2 vCPU servers:
 | Memory | 6GB | 2GB |
 | CPU | 1.8 cores | 0.5 cores |
 
-Adjust in `docker-compose.coolify.yml` if your server specs differ.
+Adjust in `docker-compose.yml` if your server specs differ.
 
 ## Troubleshooting
 

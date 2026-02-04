@@ -6,7 +6,7 @@
     {
       "name": "OpenClaw Gateway",
       "type": "docker-compose",
-      "dockerComposeFile": "docker-compose.coolify.yml"
+      "dockerComposeFile": "docker-compose.yaml"
     }
   ],
   "tags": [

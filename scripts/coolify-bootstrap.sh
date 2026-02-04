@@ -2,14 +2,24 @@
 set -e
 
 # OpenClaw Coolify Bootstrap Script
-# Handles token generation, config creation, and startup
+# Handles token management, config creation, and startup
+#
+# Environment Variables (from docker-compose.yml):
+#   - OPENCLAW_GATEWAY_TOKEN: Auth token (from SERVICE_PASSWORD_GATEWAY)
+#   - OPENCLAW_GATEWAY_PORT: Internal port (default: 3000)
+#   - ZAI_API_KEY: Model API key
+#   - SERVICE_FQDN_OPENCLAW: Coolify-assigned domain
 
 OPENCLAW_STATE="/root/.openclaw"
 CONFIG_FILE="$OPENCLAW_STATE/openclaw.json"
 WORKSPACE_DIR="/root/openclaw-workspace"
 TOKEN_FILE="$OPENCLAW_STATE/.gateway_token"
 
-# Validate bind value (must be: loopback, lan, tailnet, auto, or custom)
+# Default port for Coolify (Traefik routes to this)
+OPENCLAW_GATEWAY_PORT="${OPENCLAW_GATEWAY_PORT:-3000}"
+export OPENCLAW_GATEWAY_PORT
+
+# Validate bind value
 case "${OPENCLAW_GATEWAY_BIND:-}" in
   loopback|lan|tailnet|auto|custom)
     ;;
@@ -22,14 +32,17 @@ esac
 mkdir -p "$OPENCLAW_STATE" "$WORKSPACE_DIR"
 chmod 700 "$OPENCLAW_STATE"
 
-# Create CLI symlinks (in /root/bin to avoid permission issues)
+# ----------------------------
+# CLI Setup
+# ----------------------------
 mkdir -p /root/bin
+
+# Create openclaw symlink
 if [ ! -f /root/bin/openclaw ]; then
-  # Use openclaw.mjs (the actual CLI entry point from package.json bin)
   ln -sf /app/openclaw.mjs /root/bin/openclaw
 fi
 
-# Ensure PATH is set for future sessions
+# Ensure PATH is set
 export PATH="/root/bin:$PATH"
 if ! grep -q '/root/bin' /root/.bashrc 2>/dev/null; then
   echo 'export PATH="/root/bin:$PATH"' >> /root/.bashrc
@@ -59,8 +72,9 @@ HELPER
 fi
 
 # ----------------------------
-# Gateway Token Persistence
+# Gateway Token
 # ----------------------------
+# Use Coolify's SERVICE_PASSWORD_GATEWAY, or persist our own
 if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
   if [ -f "$TOKEN_FILE" ]; then
     OPENCLAW_GATEWAY_TOKEN=$(cat "$TOKEN_FILE")
@@ -69,14 +83,17 @@ if [ -z "$OPENCLAW_GATEWAY_TOKEN" ]; then
     OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 32 2>/dev/null || head -c 64 /dev/urandom | xxd -p | tr -d '\n')
     echo "$OPENCLAW_GATEWAY_TOKEN" > "$TOKEN_FILE"
     chmod 600 "$TOKEN_FILE"
-    echo "[openclaw] Generated new gateway token: $OPENCLAW_GATEWAY_TOKEN"
+    echo "[openclaw] Generated new gateway token"
   fi
+else
+  # Persist the token from Coolify for future restarts
+  echo "$OPENCLAW_GATEWAY_TOKEN" > "$TOKEN_FILE"
+  chmod 600 "$TOKEN_FILE"
 fi
-
 export OPENCLAW_GATEWAY_TOKEN
 
 # ----------------------------
-# Generate Config (only if not exists - preserves token)
+# Generate Config
 # ----------------------------
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "[openclaw] Generating openclaw.json..."
@@ -87,7 +104,7 @@ const config = {
   env: { ZAI_API_KEY: process.env.ZAI_API_KEY || '' },
   gateway: {
     mode: 'local',
-    port: parseInt(process.env.OPENCLAW_GATEWAY_PORT) || 28471,
+    port: parseInt(process.env.OPENCLAW_GATEWAY_PORT) || 3000,
     bind: 'lan',
     controlUi: { enabled: true, allowInsecureAuth: false },
     trustedProxies: ['*'],
@@ -113,42 +130,37 @@ const config = {
 };
 fs.writeFileSync('$CONFIG_FILE', JSON.stringify(config, null, 2) + '\n');
 fs.chmodSync('$CONFIG_FILE', 0o600);
-console.log('[openclaw] Config ready at $CONFIG_FILE');
+console.log('[openclaw] Config ready');
 "
 else
-  echo "[openclaw] Using existing config at $CONFIG_FILE"
-fi
-
-# Extract token from config for display
-SAVED_TOKEN=$(grep -o '"token": "[^"]*"' "$CONFIG_FILE" | cut -d'"' -f4)
-if [ -n "$SAVED_TOKEN" ]; then
-  TOKEN="$SAVED_TOKEN"
-else
-  TOKEN="$OPENCLAW_GATEWAY_TOKEN"
+  echo "[openclaw] Using existing config"
 fi
 
 # ----------------------------
-# Banner & Access Info
+# Display Access Info
 # ----------------------------
 echo ""
 echo "=================================================================="
-echo "🦞 OpenClaw is ready!"
+echo "OpenClaw Gateway Ready"
 echo "=================================================================="
 echo ""
-echo "🔑 Access Token: $TOKEN"
+echo "Token: $OPENCLAW_GATEWAY_TOKEN"
+echo "Port:  $OPENCLAW_GATEWAY_PORT"
 echo ""
-echo "🌍 Local URL: http://localhost:${OPENCLAW_GATEWAY_PORT:-28471}?token=$TOKEN"
 if [ -n "$SERVICE_FQDN_OPENCLAW" ]; then
-  echo "☁️  Public URL: https://${SERVICE_FQDN_OPENCLAW}?token=$TOKEN"
+  echo "URL: https://${SERVICE_FQDN_OPENCLAW}?token=$OPENCLAW_GATEWAY_TOKEN"
+else
+  echo "URL: http://localhost:${OPENCLAW_GATEWAY_PORT}?token=$OPENCLAW_GATEWAY_TOKEN"
 fi
 echo ""
-echo "👉 To approve devices, run: openclaw-approve"
-echo "👉 To configure: openclaw onboard"
+echo "Commands:"
+echo "  openclaw-approve  - Approve pending device requests"
+echo "  openclaw onboard  - Configure the gateway"
 echo ""
 echo "=================================================================="
 
 # ----------------------------
-# Wait for Docker Proxy (if enabled)
+# Wait for Docker Proxy
 # ----------------------------
 if [ -n "$DOCKER_HOST" ]; then
   echo "[openclaw] Waiting for Docker proxy..."
@@ -157,14 +169,13 @@ if [ -n "$DOCKER_HOST" ]; then
       echo "[openclaw] Docker proxy ready"
       break
     fi
-    echo "[openclaw] Waiting for Docker proxy... ($i/30)"
     sleep 2
   done
 fi
 
 # ----------------------------
-# Run OpenClaw Gateway
+# Start Gateway
 # ----------------------------
 ulimit -n 65535 2>/dev/null || true
-echo "[openclaw] Starting gateway..."
-exec node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND:-lan}" --port "${OPENCLAW_GATEWAY_PORT:-28471}"
+echo "[openclaw] Starting gateway on port $OPENCLAW_GATEWAY_PORT..."
+exec node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND:-lan}" --port "$OPENCLAW_GATEWAY_PORT"
