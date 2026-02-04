@@ -44,7 +44,7 @@ services:
       - OPENCLAW_WORKSPACE=/root/openclaw-workspace
 
       # Trust Traefik proxy headers
-      - GATEWAY_TRUSTED_PROXIES=*
+      - GATEWAY_TRUSTED_PROXIES=${GATEWAY_TRUSTED_PROXIES:-10.0.1.7}
 
       # File watching fix for Docker
       - CHOKIDAR_USEPOLLING=true
