@@ -268,12 +268,6 @@ export async function authorizeGatewayConnect(params: {
       return { ok: false, reason: "token_missing" };
     }
     if (!safeEqual(connectAuth.token, auth.token)) {
-      // DEBUG: Log token comparison details
-      console.error(`[AUTH DEBUG] Token mismatch!`);
-      console.error(`[AUTH DEBUG] connectAuth.token: "${connectAuth.token}" (len=${connectAuth.token.length})`);
-      console.error(`[AUTH DEBUG] auth.token: "${auth.token}" (len=${auth.token?.length})`);
-      console.error(`[AUTH DEBUG] connectAuth.token bytes: ${Buffer.from(connectAuth.token).toString('hex')}`);
-      console.error(`[AUTH DEBUG] auth.token bytes: ${Buffer.from(auth.token ?? '').toString('hex')}`);
       return { ok: false, reason: "token_mismatch" };
     }
     return { ok: true, method: "token" };
