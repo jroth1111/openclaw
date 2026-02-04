@@ -27,7 +27,12 @@ mkdir -p /root/bin
 if [ ! -f /root/bin/openclaw ]; then
   ln -sf /app/dist/index.js /root/bin/openclaw
 fi
+
+# Ensure PATH is set for future sessions
 export PATH="/root/bin:$PATH"
+if ! grep -q '/root/bin' /root/.bashrc 2>/dev/null; then
+  echo 'export PATH="/root/bin:$PATH"' >> /root/.bashrc
+fi
 
 # Create openclaw-approve helper
 if [ ! -f /root/bin/openclaw-approve ]; then
@@ -142,7 +147,23 @@ echo ""
 echo "=================================================================="
 
 # ----------------------------
+# Wait for Docker Proxy (if enabled)
+# ----------------------------
+if [ -n "$DOCKER_HOST" ]; then
+  echo "[openclaw] Waiting for Docker proxy..."
+  for i in {1..30}; do
+    if curl -sf "$DOCKER_HOST/_ping" > /dev/null 2>&1; then
+      echo "[openclaw] Docker proxy ready"
+      break
+    fi
+    echo "[openclaw] Waiting for Docker proxy... ($i/30)"
+    sleep 2
+  done
+fi
+
+# ----------------------------
 # Run OpenClaw Gateway
 # ----------------------------
 ulimit -n 65535
+echo "[openclaw] Starting gateway..."
 exec node dist/index.js gateway
