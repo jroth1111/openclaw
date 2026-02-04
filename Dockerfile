@@ -39,10 +39,10 @@ RUN chown -R node:node /app
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
 
-# Start gateway server with default config.
-# Binds to loopback (127.0.0.1) by default for security.
-#
-# For container platforms requiring external health checks:
-#   1. Set OPENCLAW_GATEWAY_TOKEN or OPENCLAW_GATEWAY_PASSWORD env var
-#   2. Override CMD: ["node","dist/index.js","gateway","--allow-unconfigured","--bind","lan"]
-CMD ["node", "dist/index.js", "gateway", "--allow-unconfigured"]
+# Default gateway port - can be overridden with --port flag
+EXPOSE 18789
+
+# Start gateway server with LAN binding for container deployments.
+# The gateway binds to 0.0.0.0 to allow external connections through Docker networking.
+# Authentication is required via OPENCLAW_GATEWAY_TOKEN or OPENCLAW_GATEWAY_PASSWORD env var.
+CMD ["node", "dist/index.js", "gateway", "--allow-unconfigured", "--bind", "lan"]

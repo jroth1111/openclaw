@@ -164,6 +164,6 @@ fi
 # ----------------------------
 # Run OpenClaw Gateway
 # ----------------------------
-ulimit -n 65535
+ulimit -n 65535 2>/dev/null || true
 echo "[openclaw] Starting gateway..."
-exec node dist/index.js gateway
+exec node dist/index.js gateway --bind "${OPENCLAW_GATEWAY_BIND:-lan}" --port "${OPENCLAW_GATEWAY_PORT:-28471}"

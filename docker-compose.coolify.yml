@@ -57,9 +57,9 @@ services:
         soft: 65535
         hard: 65535
 
-    # Healthcheck using HTTP
+    # Healthcheck using HTTP - uses node for portability
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${OPENCLAW_GATEWAY_PORT:-28471}/"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:' + (process.env.OPENCLAW_GATEWAY_PORT || 28471) + '/', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3
