@@ -245,13 +245,6 @@ export async function authorizeGatewayConnect(params: {
   const { auth, connectAuth, req, trustedProxies } = params;
   const tailscaleWhois = params.tailscaleWhois ?? readTailscaleWhoisIdentity;
   const localDirect = isLocalDirectRequest(req, trustedProxies);
-  // DEBUG: Log entry into authorizeGatewayConnect
-  console.error(`[AUTH] authorizeGatewayConnect called`);
-  console.error(`[AUTH] auth.mode = "${auth.mode}"`);
-  console.error(`[AUTH] auth.token = "${auth.token}" (len=${auth.token?.length ?? 0})`);
-  console.error(`[AUTH] connectAuth = ${JSON.stringify(connectAuth)}`);
-  console.error(`[AUTH] localDirect = ${localDirect}`);
-
   if (auth.allowTailscale && !localDirect) {
     const tailscaleCheck = await resolveVerifiedTailscaleUser({
       req,
@@ -273,10 +266,6 @@ export async function authorizeGatewayConnect(params: {
     if (!connectAuth?.token) {
       return { ok: false, reason: "token_missing" };
     }
-    // DEBUG: Log token comparison
-    console.error(`[AUTH] server token: "${auth.token}" (len=${auth.token.length})`);
-    console.error(`[AUTH] client token: "${connectAuth.token}" (len=${connectAuth.token.length})`);
-    console.error(`[AUTH] safeEqual result: ${safeEqual(connectAuth.token, auth.token)}`);
     if (!safeEqual(connectAuth.token, auth.token)) {
       return { ok: false, reason: "token_mismatch" };
     }

@@ -413,19 +413,12 @@ export function attachGatewayWsMessageHandler(params: {
         const allowControlUiBypass = allowInsecureControlUi || disableControlUiDeviceAuth;
         const device = disableControlUiDeviceAuth ? null : deviceRaw;
 
-        // DEBUG: Log auth inputs before calling authorizeGatewayConnect
-        console.error(`[MSG-HANDLER] About to call authorizeGatewayConnect`);
-        console.error(`[MSG-HANDLER] resolvedAuth.mode = "${resolvedAuth.mode}"`);
-        console.error(`[MSG-HANDLER] resolvedAuth.token = "${resolvedAuth.token}"`);
-        console.error(`[MSG-HANDLER] connectParams.auth = ${JSON.stringify(connectParams.auth)}`);
-
         const authResult = await authorizeGatewayConnect({
           auth: resolvedAuth,
           connectAuth: connectParams.auth,
           req: upgradeReq,
           trustedProxies,
         });
-        console.error(`[MSG-HANDLER] authResult = ${JSON.stringify(authResult)}`);
         let authOk = authResult.ok;
         let authMethod =
           authResult.method ?? (resolvedAuth.mode === "password" ? "password" : "token");
