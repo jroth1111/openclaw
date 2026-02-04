@@ -75,6 +75,10 @@ export async function resolveGatewayRuntimeConfig(params: {
     env: process.env,
     tailscaleMode,
   });
+  // DEBUG: Log resolved auth at startup
+  console.error(`[STARTUP] resolvedAuth.token = "${resolvedAuth.token}"`);
+  console.error(`[STARTUP] authConfig.token = "${authConfig.token}"`);
+  console.error(`[STARTUP] env.OPENCLAW_GATEWAY_TOKEN = "${process.env.OPENCLAW_GATEWAY_TOKEN}"`);
   const authMode: ResolvedGatewayAuth["mode"] = resolvedAuth.mode;
   const hasToken = typeof resolvedAuth.token === "string" && resolvedAuth.token.trim().length > 0;
   const hasPassword =
