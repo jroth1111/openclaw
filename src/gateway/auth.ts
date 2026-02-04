@@ -268,7 +268,6 @@ export async function authorizeGatewayConnect(params: {
       return { ok: false, reason: "token_missing" };
     }
     if (!safeEqual(connectAuth.token, auth.token)) {
-      console.error(`[AUTH] Token mismatch: client="${connectAuth.token}" server="${auth.token}"`);
       return { ok: false, reason: "token_mismatch" };
     }
     return { ok: true, method: "token" };
