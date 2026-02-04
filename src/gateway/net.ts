@@ -76,6 +76,9 @@ export function isTrustedProxyAddress(ip: string | undefined, trustedProxies?: s
   if (!normalized || !trustedProxies || trustedProxies.length === 0) {
     return false;
   }
+  if (trustedProxies.some((proxy) => proxy.trim() === "*")) {
+    return true;
+  }
   return trustedProxies.some((proxy) => normalizeIp(proxy) === normalized);
 }
 
