@@ -245,6 +245,12 @@ export async function authorizeGatewayConnect(params: {
   const { auth, connectAuth, req, trustedProxies } = params;
   const tailscaleWhois = params.tailscaleWhois ?? readTailscaleWhoisIdentity;
   const localDirect = isLocalDirectRequest(req, trustedProxies);
+  // DEBUG: Log entry into authorizeGatewayConnect
+  console.error(`[AUTH] authorizeGatewayConnect called`);
+  console.error(`[AUTH] auth.mode = "${auth.mode}"`);
+  console.error(`[AUTH] auth.token = "${auth.token}" (len=${auth.token?.length ?? 0})`);
+  console.error(`[AUTH] connectAuth = ${JSON.stringify(connectAuth)}`);
+  console.error(`[AUTH] localDirect = ${localDirect}`);
 
   if (auth.allowTailscale && !localDirect) {
     const tailscaleCheck = await resolveVerifiedTailscaleUser({
