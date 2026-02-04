@@ -25,7 +25,8 @@ chmod 700 "$OPENCLAW_STATE"
 # Create CLI symlinks (in /root/bin to avoid permission issues)
 mkdir -p /root/bin
 if [ ! -f /root/bin/openclaw ]; then
-  ln -sf /app/dist/index.js /root/bin/openclaw
+  # Use openclaw.mjs (the actual CLI entry point from package.json bin)
+  ln -sf /app/openclaw.mjs /root/bin/openclaw
 fi
 
 # Ensure PATH is set for future sessions
