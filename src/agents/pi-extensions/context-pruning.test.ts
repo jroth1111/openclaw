@@ -177,6 +177,56 @@ describe("context-pruning", () => {
     expect(toolText(findToolResult(next, "t1"))).toBe("[cleared]");
   });
 
+  it("externalizes large tool results into artifacts when configured", () => {
+    const settings = {
+      ...DEFAULT_CONTEXT_PRUNING_SETTINGS,
+      keepLastAssistants: 0,
+      softTrimRatio: 0.0,
+      hardClearRatio: 1.0,
+      minPrunableToolChars: 0,
+      hardClear: { enabled: true, placeholder: "[cleared]" },
+      softTrim: { maxChars: 10, headChars: 3, tailChars: 3 },
+    };
+
+    const messages: AgentMessage[] = [
+      makeUser("u1"),
+      makeAssistant("a1"),
+      makeImageToolResult({
+        toolCallId: "t1",
+        toolName: "browser",
+        text: "x".repeat(500),
+      }),
+    ];
+
+    const ctx = {
+      model: { contextWindow: 1000 },
+    } as unknown as ExtensionContext;
+
+    const stored: Array<{ toolName?: string; content: unknown }> = [];
+    const next = pruneContextMessages({
+      messages,
+      settings,
+      ctx,
+      isToolPrunable: () => true,
+      storeArtifact: ({ toolName, content }) => {
+        stored.push({ toolName, content });
+        return {
+          id: "art_test",
+          type: "tool-result",
+          toolName,
+          createdAt: "now",
+          sizeBytes: 1024,
+          summary: "summary",
+          path: "/tmp/artifacts/art_test.json",
+        };
+      },
+    });
+
+    const text = toolText(findToolResult(next, "t1"));
+    expect(text).toContain("art_test");
+    expect(stored).toHaveLength(1);
+  });
+
   it("hard-clear removes eligible tool results before cutoff", () => {
     const messages: AgentMessage[] = [
       makeUser("u1"),

@@ -3,6 +3,7 @@ import type { ImageContent, TextContent, ToolResultMessage } from "@mariozechner
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { EffectiveContextPruningSettings } from "./settings.js";
 import { makeToolPrunablePredicate } from "./tools.js";
+import type { ArtifactRef } from "./artifacts.js";
 
 const CHARS_PER_TOKEN_ESTIMATE = 4;
 // We currently skip pruning tool results that contain images. Still, we count them (approx.) so
@@ -222,12 +223,50 @@ ${tail}`;
   return { ...msg, content: [asText(trimmed + note)] };
 }
 
+function externalizeToolResultMessage(params: {
+  msg: ToolResultMessage;
+  settings: EffectiveContextPruningSettings;
+  storeArtifact?: (params: { toolName?: string; content: ToolResultMessage["content"] }) => ArtifactRef;
+}): ToolResultMessage | null {
+  const { msg, settings, storeArtifact } = params;
+  if (!storeArtifact) {
+    return null;
+  }
+
+  const parts = collectTextSegments(msg.content);
+  const rawLen = estimateJoinedTextLength(parts);
+  const hasImages = hasImageBlocks(msg.content);
+  const shouldExternalize = hasImages || rawLen > settings.softTrim.maxChars;
+  if (!shouldExternalize) {
+    return null;
+  }
+
+  const ref = storeArtifact({ toolName: msg.toolName, content: msg.content });
+  const placeholder = [
+    `[Tool result omitted: stored as artifact]`,
+    `id: ${ref.id}`,
+    ref.toolName ? `tool: ${ref.toolName}` : null,
+    `size: ${Math.round(ref.sizeBytes / 1024)}KB`,
+    `created: ${ref.createdAt}`,
+    `summary: ${ref.summary}`,
+    `path: ${ref.path}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    ...msg,
+    content: [asText(placeholder)],
+  };
+}
+
 export function pruneContextMessages(params: {
   messages: AgentMessage[];
   settings: EffectiveContextPruningSettings;
   ctx: Pick<ExtensionContext, "model">;
   isToolPrunable?: (toolName: string) => boolean;
   contextWindowTokensOverride?: number;
+  storeArtifact?: (params: { toolName?: string; content: ToolResultMessage["content"] }) => ArtifactRef;
 }): AgentMessage[] {
   const { messages, settings, ctx } = params;
   const contextWindowTokens =
@@ -276,15 +315,22 @@ export function pruneContextMessages(params: {
     if (!isToolPrunable(msg.toolName)) {
       continue;
     }
-    if (hasImageBlocks(msg.content)) {
-      continue;
-    }
     prunableToolIndexes.push(i);
 
-    const updated = softTrimToolResultMessage({
-      msg: msg as unknown as ToolResultMessage,
-      settings,
-    });
+    let updated: ToolResultMessage | null = null;
+    if (ratio >= settings.softTrimRatio) {
+      updated = externalizeToolResultMessage({
+        msg: msg as unknown as ToolResultMessage,
+        settings,
+        storeArtifact: params.storeArtifact,
+      });
+    }
+    if (!updated) {
+      updated = softTrimToolResultMessage({
+        msg: msg as unknown as ToolResultMessage,
+        settings,
+      });
+    }
     if (!updated) {
       continue;
     }
