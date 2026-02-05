@@ -80,7 +80,7 @@ It writes config/workspace on the host:
 }
 ```
 
-Replace `YOUR_GATEWAY_TOKEN_HERE` with the actual token (or set `MOLTBOT_GATEWAY_TOKEN` environment variable instead). 
+Replace `YOUR_GATEWAY_TOKEN_HERE` with the actual token (or set `MOLTBOT_GATEWAY_TOKEN` environment variable instead).
 
 The `controlUi.allowInsecureAuth` setting allows token-only authentication for the Control UI, bypassing device identity pairing. This is necessary because connections from the Docker bridge network (e.g., `172.21.0.1`) are not detected as "local" connections, even when accessing via `http://127.0.0.1:18789`. Without this setting, you will see "pairing required" errors.
 

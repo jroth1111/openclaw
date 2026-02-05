@@ -40,14 +40,15 @@ This guide covers deploying OpenClaw Gateway on [Coolify](https://coolify.io/) u
 
 In the Coolify UI, navigate to **Environment Variables** and set:
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `ZAI_API_KEY` | **Yes** | - | Your real ZAI API key from [z.ai](https://z.ai/) |
-| `OPENCLAW_DOMAIN` | **Yes** | - | Your custom subdomain (e.g., `openclaw.coolify.example.com`) |
-| `SERVICE_PASSWORD_GATEWAY` | Auto | Generated | Coolify magic variable - auto-generates gateway auth token |
-| `OPENCLAW_GATEWAY_PORT` | No | 3000 | Internal port (Traefik routes external traffic) |
+| Variable                   | Required | Default   | Description                                                  |
+| -------------------------- | -------- | --------- | ------------------------------------------------------------ |
+| `ZAI_API_KEY`              | **Yes**  | -         | Your real ZAI API key from [z.ai](https://z.ai/)             |
+| `OPENCLAW_DOMAIN`          | **Yes**  | -         | Your custom subdomain (e.g., `openclaw.coolify.example.com`) |
+| `SERVICE_PASSWORD_GATEWAY` | Auto     | Generated | Coolify magic variable - auto-generates gateway auth token   |
+| `OPENCLAW_GATEWAY_PORT`    | No       | 3000      | Internal port (Traefik routes external traffic)              |
 
-**Important**: 
+**Important**:
+
 - `ZAI_API_KEY` is required - you **must** set this to your real key
 - `OPENCLAW_DOMAIN` should be your desired subdomain (Coolify will provision SSL via Let's Encrypt)
 
@@ -71,13 +72,14 @@ labels:
 1. Click **Deploy**
 2. Monitor the deployment logs
 3. On startup, look for the access URL in logs:
+
    ```
    ============================================================
    OpenClaw Gateway Ready
    ============================================================
    Token: <your-token-here>
    Port:  3000
-   
+
    URL: https://openclaw.coolify.example.com?token=<token>
    ============================================================
    ```
@@ -85,6 +87,7 @@ labels:
 ### 5. Verify Deployment
 
 Check the health status in Coolify dashboard:
+
 - Should show **Healthy** after ~60 seconds
 - If unhealthy, check logs for errors
 
@@ -111,16 +114,16 @@ openclaw dashboard --host https://openclaw.coolify.example.com --token <token>
 
 ### Volume Persistence
 
-| Path | Volume | Contents |
-|------|--------|----------|
-| `/root/.openclaw` | `openclaw-config` | Config, sessions, agents |
-| `/root/openclaw-workspace` | `openclaw-workspace` | User workspace files |
+| Path                       | Volume               | Contents                 |
+| -------------------------- | -------------------- | ------------------------ |
+| `/root/.openclaw`          | `openclaw-config`    | Config, sessions, agents |
+| `/root/openclaw-workspace` | `openclaw-workspace` | User workspace files     |
 
 ### Services
 
-| Service | Purpose |
-|---------|---------|
-| `openclaw` | Main gateway server |
+| Service        | Purpose                                           |
+| -------------- | ------------------------------------------------- |
+| `openclaw`     | Main gateway server                               |
 | `docker-proxy` | Secure Docker socket proxy for sandbox containers |
 
 ### Security Features
@@ -134,10 +137,10 @@ openclaw dashboard --host https://openclaw.coolify.example.com --token <token>
 
 For 8GB RAM / 2 vCPU servers:
 
-| Resource | Limit | Reservation |
-|----------|-------|-------------|
-| Memory | 6GB | 2GB |
-| CPU | 1.8 cores | 0.5 cores |
+| Resource | Limit     | Reservation |
+| -------- | --------- | ----------- |
+| Memory   | 6GB       | 2GB         |
+| CPU      | 1.8 cores | 0.5 cores   |
 
 Adjust in `docker-compose.yaml` if your server specs differ.
 
@@ -146,6 +149,7 @@ Adjust in `docker-compose.yaml` if your server specs differ.
 ### Container Unhealthy
 
 Check logs for:
+
 - Missing `ZAI_API_KEY` (must be set to real key)
 - Missing `OPENCLAW_DOMAIN` (must be set to your subdomain)
 - Port conflicts
@@ -161,6 +165,7 @@ Check logs for:
 ### Token Not Working
 
 The gateway token comes from `SERVICE_PASSWORD_GATEWAY`:
+
 1. Go to **Environment Variables** in Coolify UI
 2. Look for `SERVICE_PASSWORD_GATEWAY` value
 3. Use this as your access token
@@ -168,6 +173,7 @@ The gateway token comes from `SERVICE_PASSWORD_GATEWAY`:
 ### ZAI Connection Errors
 
 Ensure:
+
 - `ZAI_API_KEY` is set to your real key
 - Key is valid and has credits at [z.ai](https://z.ai/)
 
@@ -211,13 +217,13 @@ To update OpenClaw:
 
 ## File Reference
 
-| File | Purpose |
-|------|---------|
-| `docker-compose.yaml` | Primary Coolify deployment config |
-| `docker-compose.local.yaml` | Local development config |
+| File                           | Purpose                               |
+| ------------------------------ | ------------------------------------- |
+| `docker-compose.yaml`          | Primary Coolify deployment config     |
+| `docker-compose.local.yaml`    | Local development config              |
 | `scripts/coolify-bootstrap.sh` | Startup script with config generation |
-| `Dockerfile` | Container build with `--bind lan` |
-| `coolify.json` | Coolify deployment metadata |
+| `Dockerfile`                   | Container build with `--bind lan`     |
+| `coolify.json`                 | Coolify deployment metadata           |
 
 ## References
 
