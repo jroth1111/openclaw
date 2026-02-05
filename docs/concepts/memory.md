@@ -75,6 +75,34 @@ Details:
 For the full compaction lifecycle, see
 [Session management + compaction](/reference/session-management-compaction).
 
+## Artifact recall (tool outputs)
+
+OpenClaw externalizes tool outputs into **session-scoped artifacts** and replaces
+the in-transcript payload with a deterministic placeholder. This keeps the
+context window lean while preserving exact outputs for later reference.
+
+Enable a bounded recall section in the system prompt with `memory.artifacts`:
+
+```json5
+{
+  memory: {
+    artifacts: {
+      enabled: true,
+      maxItems: 8,
+      maxChars: 2000,
+      narrativeMaxChars: 600,
+    },
+  },
+}
+```
+
+Notes:
+
+- Artifacts live alongside session transcripts under
+  `~/.openclaw/agents/<agentId>/sessions/artifacts/`.
+- The recall section is **session-scoped** and keeps only recent artifact
+  summaries + references, not the full payloads.
+
 ## Vector memory search
 
 OpenClaw can build a small vector index over `MEMORY.md` and `memory/*.md` so
