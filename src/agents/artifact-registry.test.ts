@@ -7,6 +7,7 @@ import {
   computeArtifactHash,
   findArtifactByHash,
   getArtifactById,
+  getArtifactPayloadById,
   readArtifactRegistry,
 } from "./artifact-registry.js";
 
@@ -19,6 +20,16 @@ describe("artifact registry", () => {
 
   it("appends and reads registry entries", () => {
     const dir = fs.mkdtempSync(path.join(tmpdir(), "openclaw-artifact-registry-"));
+    const artifactPath = path.join(dir, "art_1.json");
+    const payload = {
+      id: "art_1",
+      type: "tool-result",
+      createdAt: new Date().toISOString(),
+      sizeBytes: 12,
+      summary: "ok",
+      content: [{ type: "text", text: "output" }],
+    };
+    fs.writeFileSync(artifactPath, `${JSON.stringify(payload)}\n`, "utf-8");
     const hash = computeArtifactHash({ foo: "bar" });
     appendArtifactRegistryEntry({
       artifactDir: dir,
@@ -30,7 +41,7 @@ describe("artifact registry", () => {
           createdAt: new Date().toISOString(),
           sizeBytes: 12,
           summary: "ok",
-          path: path.join(dir, "art_1.json"),
+          path: artifactPath,
         },
       },
     });
@@ -45,5 +56,8 @@ describe("artifact registry", () => {
 
     const byId = getArtifactById(dir, "art_1");
     expect(byId?.hash).toBe(hash);
+
+    const payloadById = getArtifactPayloadById(dir, "art_1");
+    expect(payloadById?.content?.[0]?.type).toBe("text");
   });
 });

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { ArtifactRef } from "./session-artifacts.js";
+import { readToolResultArtifactPayload, type ToolResultArtifactPayload } from "./artifact-store.js";
 
 export type ArtifactRegistryEntry = {
   hash: string;
@@ -67,6 +68,17 @@ export function getArtifactById(artifactDir: string, id: string): ArtifactRegist
     }
   }
   return null;
+}
+
+export function getArtifactPayloadById(
+  artifactDir: string,
+  id: string,
+): ToolResultArtifactPayload | null {
+  const entry = getArtifactById(artifactDir, id);
+  if (!entry) {
+    return null;
+  }
+  return readToolResultArtifactPayload(entry.artifact.path);
 }
 
 export function listArtifactsForSession(params: {
