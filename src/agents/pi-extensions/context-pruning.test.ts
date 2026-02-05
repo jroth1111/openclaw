@@ -1,5 +1,8 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import fs from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   computeEffectiveSettings,
@@ -7,6 +10,7 @@ import {
   DEFAULT_CONTEXT_PRUNING_SETTINGS,
   pruneContextMessages,
 } from "./context-pruning.js";
+import { writeToolResultArtifact } from "./context-pruning/artifacts.js";
 import { getContextPruningRuntime, setContextPruningRuntime } from "./context-pruning/runtime.js";
 
 function toolText(msg: AgentMessage): string {
@@ -571,5 +575,82 @@ describe("context-pruning", () => {
     expect(text).toContain("abcdef");
     expect(text).toContain("efghij");
     expect(text).toContain("[Tool result trimmed:");
+  });
+});
+
+describe("context-pruning artifacts", () => {
+  it("writes tool result artifact with deterministic summary", () => {
+    const dir = fs.mkdtempSync(path.join(tmpdir(), "openclaw-artifacts-"));
+    const ref = writeToolResultArtifact({
+      artifactDir: dir,
+      toolName: "exec",
+      content: [{ type: "text", text: "hello\nworld" }],
+    });
+
+    expect(ref.id).toContain("art_");
+    expect(ref.toolName).toBe("exec");
+    expect(ref.summary).toContain("hello");
+    expect(fs.existsSync(ref.path)).toBe(true);
+    const raw = fs.readFileSync(ref.path, "utf8");
+    expect(raw).toContain('"type": "tool-result"');
+  });
+
+  it("extension replaces tool results with artifact placeholders", () => {
+    const dir = fs.mkdtempSync(path.join(tmpdir(), "openclaw-artifacts-"));
+    const runtimeSession = {};
+    setContextPruningRuntime(runtimeSession, {
+      settings: {
+        ...DEFAULT_CONTEXT_PRUNING_SETTINGS,
+        mode: "cache-ttl",
+        ttlMs: 1,
+        keepLastAssistants: 0,
+        softTrimRatio: 0.0,
+        hardClearRatio: 1.0,
+        minPrunableToolChars: 0,
+        hardClear: { enabled: true, placeholder: "[cleared]" },
+        softTrim: { maxChars: 10, headChars: 3, tailChars: 3 },
+      },
+      contextWindowTokens: 1000,
+      isToolPrunable: () => true,
+      lastCacheTouchAt: Date.now() - 10000,
+      artifactDir: dir,
+    });
+
+    let handler:
+      | ((
+          event: { messages: AgentMessage[] },
+          ctx: ExtensionContext,
+        ) => { messages: AgentMessage[] })
+      | undefined;
+    const api = {
+      on: (name: string, fn: unknown) => {
+        if (name === "context") handler = fn as typeof handler;
+      },
+      appendEntry: () => {},
+    } as unknown as ExtensionAPI;
+
+    contextPruningExtension(api);
+    if (!handler) {
+      throw new Error("missing context handler");
+    }
+
+    const messages: AgentMessage[] = [
+      makeUser("u1"),
+      makeAssistant("a1"),
+      makeImageToolResult({
+        toolCallId: "t1",
+        toolName: "browser",
+        text: "x".repeat(500),
+      }),
+    ];
+
+    const res = handler({ messages }, {
+      model: { contextWindow: 1000 },
+      sessionManager: runtimeSession,
+    } as ExtensionContext);
+    const text = toolText(findToolResult(res.messages, "t1"));
+    expect(text).toContain("stored as artifact");
+    const files = fs.readdirSync(dir);
+    expect(files.length).toBeGreaterThan(0);
   });
 });

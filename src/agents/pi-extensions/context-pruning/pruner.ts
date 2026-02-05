@@ -1,9 +1,9 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { ImageContent, TextContent, ToolResultMessage } from "@mariozechner/pi-ai";
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { ArtifactRef } from "./artifacts.js";
 import type { EffectiveContextPruningSettings } from "./settings.js";
 import { makeToolPrunablePredicate } from "./tools.js";
-import type { ArtifactRef } from "./artifacts.js";
 
 const CHARS_PER_TOKEN_ESTIMATE = 4;
 // We currently skip pruning tool results that contain images. Still, we count them (approx.) so
@@ -226,7 +226,10 @@ ${tail}`;
 function externalizeToolResultMessage(params: {
   msg: ToolResultMessage;
   settings: EffectiveContextPruningSettings;
-  storeArtifact?: (params: { toolName?: string; content: ToolResultMessage["content"] }) => ArtifactRef;
+  storeArtifact?: (params: {
+    toolName?: string;
+    content: ToolResultMessage["content"];
+  }) => ArtifactRef;
 }): ToolResultMessage | null {
   const { msg, settings, storeArtifact } = params;
   if (!storeArtifact) {
@@ -266,7 +269,10 @@ export function pruneContextMessages(params: {
   ctx: Pick<ExtensionContext, "model">;
   isToolPrunable?: (toolName: string) => boolean;
   contextWindowTokensOverride?: number;
-  storeArtifact?: (params: { toolName?: string; content: ToolResultMessage["content"] }) => ArtifactRef;
+  storeArtifact?: (params: {
+    toolName?: string;
+    content: ToolResultMessage["content"];
+  }) => ArtifactRef;
 }): AgentMessage[] {
   const { messages, settings, ctx } = params;
   const contextWindowTokens =
@@ -313,6 +319,9 @@ export function pruneContextMessages(params: {
       continue;
     }
     if (!isToolPrunable(msg.toolName)) {
+      continue;
+    }
+    if (hasImageBlocks(msg.content) && !params.storeArtifact) {
       continue;
     }
     prunableToolIndexes.push(i);

@@ -116,7 +116,7 @@ describe("applyExtraParamsToAgent", () => {
     void agent.streamFn?.(model, context, { maxTokens: 500000 });
 
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.maxTokens).toBe(131072);
+    expect(calls[0]?.maxTokens).toBe(128000);
   });
 
   it("caps maxTokens to remaining context when model limits are known", () => {
