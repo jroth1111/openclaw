@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { readArtifactRegistry } from "../artifact-registry.js";
 import {
   computeEffectiveSettings,
   default as contextPruningExtension,
@@ -591,8 +592,14 @@ describe("context-pruning artifacts", () => {
     expect(ref.toolName).toBe("exec");
     expect(ref.summary).toContain("hello");
     expect(fs.existsSync(ref.path)).toBe(true);
+    expect(ref.hash).toBeTruthy();
     const raw = fs.readFileSync(ref.path, "utf8");
     expect(raw).toContain('"type": "tool-result"');
+
+    const registry = readArtifactRegistry(dir);
+    expect(registry).toHaveLength(1);
+    expect(registry[0]?.artifact?.id).toBe(ref.id);
+    expect(registry[0]?.hash).toBe(ref.hash);
   });
 
   it("extension replaces tool results with artifact placeholders", () => {

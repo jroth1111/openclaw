@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { ArtifactRef } from "../../session-artifacts.js";
+import { appendArtifactRegistryEntry, computeArtifactHash } from "../../artifact-registry.js";
 
 type ToolResultArtifact = {
   id: string;
@@ -79,6 +80,8 @@ export function writeToolResultArtifact(params: {
   artifactDir: string;
   toolName?: string;
   content: ToolResultMessage["content"];
+  sessionId?: string;
+  sessionKey?: string;
 }): ArtifactRef {
   const id = `art_${Date.now()}_${randomUUID().slice(0, 8)}`;
   const createdAt = new Date().toISOString();
@@ -103,6 +106,7 @@ export function writeToolResultArtifact(params: {
     content: params.content,
   };
 
+  const hash = computeArtifactHash(payload.content);
   const serialized = JSON.stringify(payload);
   payload.sizeBytes = Buffer.byteLength(serialized, "utf8");
   const finalSerialized = JSON.stringify(payload, null, 2);
@@ -111,7 +115,7 @@ export function writeToolResultArtifact(params: {
   const artifactPath = path.join(params.artifactDir, `${id}.json`);
   fs.writeFileSync(artifactPath, `${finalSerialized}\n`, { mode: 0o600 });
 
-  return {
+  const ref: ArtifactRef = {
     id,
     type: payload.type,
     toolName: payload.toolName,
@@ -119,5 +123,18 @@ export function writeToolResultArtifact(params: {
     sizeBytes: payload.sizeBytes,
     summary: payload.summary,
     path: artifactPath,
+    hash,
   };
+
+  appendArtifactRegistryEntry({
+    artifactDir: params.artifactDir,
+    entry: {
+      hash,
+      artifact: ref,
+      sessionId: params.sessionId,
+      sessionKey: params.sessionKey,
+    },
+  });
+
+  return ref;
 }
