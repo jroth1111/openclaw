@@ -1,8 +1,7 @@
-import type { ToolResultMessage } from "@mariozechner/pi-ai";
-import type { TextContent, ImageContent } from "@mariozechner/pi-ai";
+import type { ToolResultMessage, TextContent, ImageContent } from "@mariozechner/pi-ai";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
 
 export type ArtifactRef = {
   id: string;
@@ -24,7 +23,7 @@ type ToolResultArtifact = {
   content: ToolResultMessage["content"];
 };
 
-function collectTextSegments(content: ReadonlyArray<TextContent | ImageContent>): string[] {
+export function collectTextSegments(content: ReadonlyArray<TextContent | ImageContent>): string[] {
   const parts: string[] = [];
   for (const block of content) {
     if (block.type === "text") {
@@ -49,7 +48,7 @@ function summarizeText(parts: string[]): string {
   return `${joined.slice(0, max)}…`;
 }
 
-function countImages(content: ReadonlyArray<TextContent | ImageContent>): number {
+export function countImages(content: ReadonlyArray<TextContent | ImageContent>): number {
   let count = 0;
   for (const block of content) {
     if (block.type === "image") {
@@ -59,11 +58,37 @@ function countImages(content: ReadonlyArray<TextContent | ImageContent>): number
   return count;
 }
 
+export function shouldExternalizeToolResult(params: {
+  content: ReadonlyArray<TextContent | ImageContent>;
+  maxChars?: number;
+}): boolean {
+  const maxChars = typeof params.maxChars === "number" ? params.maxChars : 4000;
+  if (countImages(params.content) > 0) {
+    return true;
+  }
+  const rawLen = collectTextSegments(params.content).reduce((sum, part) => sum + part.length, 0);
+  return rawLen > maxChars;
+}
+
+export function buildToolResultPlaceholder(ref: ArtifactRef): string {
+  return [
+    `[Tool result omitted: stored as artifact]`,
+    `id: ${ref.id}`,
+    ref.toolName ? `tool: ${ref.toolName}` : null,
+    `size: ${Math.round(ref.sizeBytes / 1024)}KB`,
+    `created: ${ref.createdAt}`,
+    `summary: ${ref.summary}`,
+    `path: ${ref.path}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function writeToolResultArtifact(params: {
   artifactDir: string;
   toolName?: string;
   content: ToolResultMessage["content"];
-}): Promise<ArtifactRef> {
+}): ArtifactRef {
   const id = `art_${Date.now()}_${randomUUID().slice(0, 8)}`;
   const createdAt = new Date().toISOString();
   const textParts = collectTextSegments(params.content);

@@ -3,6 +3,7 @@ import type { ImageContent, TextContent, ToolResultMessage } from "@mariozechner
 import type { ExtensionContext } from "@mariozechner/pi-coding-agent";
 import type { ArtifactRef } from "./artifacts.js";
 import type { EffectiveContextPruningSettings } from "./settings.js";
+import { buildToolResultPlaceholder, shouldExternalizeToolResult } from "./artifacts.js";
 import { makeToolPrunablePredicate } from "./tools.js";
 
 const CHARS_PER_TOKEN_ESTIMATE = 4;
@@ -236,26 +237,14 @@ function externalizeToolResultMessage(params: {
     return null;
   }
 
-  const parts = collectTextSegments(msg.content);
-  const rawLen = estimateJoinedTextLength(parts);
-  const hasImages = hasImageBlocks(msg.content);
-  const shouldExternalize = hasImages || rawLen > settings.softTrim.maxChars;
-  if (!shouldExternalize) {
+  if (
+    !shouldExternalizeToolResult({ content: msg.content, maxChars: settings.softTrim.maxChars })
+  ) {
     return null;
   }
 
   const ref = storeArtifact({ toolName: msg.toolName, content: msg.content });
-  const placeholder = [
-    `[Tool result omitted: stored as artifact]`,
-    `id: ${ref.id}`,
-    ref.toolName ? `tool: ${ref.toolName}` : null,
-    `size: ${Math.round(ref.sizeBytes / 1024)}KB`,
-    `created: ${ref.createdAt}`,
-    `summary: ${ref.summary}`,
-    `path: ${ref.path}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const placeholder = buildToolResultPlaceholder(ref);
 
   return {
     ...msg,
