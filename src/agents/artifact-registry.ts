@@ -59,6 +59,16 @@ export function findArtifactByHash(
   return null;
 }
 
+export function getArtifactById(artifactDir: string, id: string): ArtifactRegistryEntry | null {
+  const entries = readArtifactRegistry(artifactDir);
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].artifact.id === id) {
+      return entries[i];
+    }
+  }
+  return null;
+}
+
 export function listArtifactsForSession(params: {
   artifactDir: string;
   sessionKey?: string;

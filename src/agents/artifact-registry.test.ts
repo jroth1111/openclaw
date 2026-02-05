@@ -6,6 +6,7 @@ import {
   appendArtifactRegistryEntry,
   computeArtifactHash,
   findArtifactByHash,
+  getArtifactById,
   readArtifactRegistry,
 } from "./artifact-registry.js";
 
@@ -41,5 +42,8 @@ describe("artifact registry", () => {
 
     const found = findArtifactByHash(dir, hash);
     expect(found?.artifact?.id).toBe("art_1");
+
+    const byId = getArtifactById(dir, "art_1");
+    expect(byId?.hash).toBe(hash);
   });
 });
