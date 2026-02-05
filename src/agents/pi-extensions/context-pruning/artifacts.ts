@@ -2,16 +2,7 @@ import type { ToolResultMessage, TextContent, ImageContent } from "@mariozechner
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-
-export type ArtifactRef = {
-  id: string;
-  type: "tool-result";
-  toolName?: string;
-  createdAt: string;
-  sizeBytes: number;
-  summary: string;
-  path: string;
-};
+import type { ArtifactRef } from "../../session-artifacts.js";
 
 type ToolResultArtifact = {
   id: string;
