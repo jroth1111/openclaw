@@ -1,7 +1,9 @@
 import type { StreamFn } from "@mariozechner/pi-agent-core";
+import { estimateTokens } from "@mariozechner/pi-coding-agent";
 import type { SimpleStreamOptions } from "@mariozechner/pi-ai";
 import { streamSimple } from "@mariozechner/pi-ai";
 import type { OpenClawConfig } from "../../config/config.js";
+import { SAFETY_MARGIN } from "../compaction.js";
 import { log } from "./logger.js";
 
 const OPENROUTER_APP_HEADERS: Record<string, string> = {
@@ -28,6 +30,14 @@ export function resolveExtraParams(params: {
 type CacheRetention = "none" | "short" | "long";
 type CacheRetentionStreamOptions = Partial<SimpleStreamOptions> & {
   cacheRetention?: CacheRetention;
+};
+
+const CONTEXT_WINDOW_OVERRIDES: Record<string, number> = {
+  "zai/glm-4.7": 204800,
+};
+
+const MODEL_MAX_TOKENS_OVERRIDES: Record<string, number> = {
+  "zai/glm-4.7": 131072,
 };
 
 /**
@@ -101,6 +111,120 @@ function createStreamFnWithExtraParams(
   return wrappedStreamFn;
 }
 
+function resolveModelContextWindow(
+  model: { contextWindow?: number } | undefined,
+  provider: string,
+  modelId: string,
+): number | undefined {
+  if (model?.contextWindow && model.contextWindow > 0) {
+    return model.contextWindow;
+  }
+  const key = `${provider}/${modelId}`;
+  return CONTEXT_WINDOW_OVERRIDES[key];
+}
+
+function resolveModelMaxTokens(
+  model: { maxTokens?: number } | undefined,
+  provider: string,
+  modelId: string,
+): number | undefined {
+  if (model?.maxTokens && model.maxTokens > 0) {
+    return model.maxTokens;
+  }
+  const key = `${provider}/${modelId}`;
+  return MODEL_MAX_TOKENS_OVERRIDES[key];
+}
+
+export function estimateInputTokens(params: {
+  system?: string;
+  messages?: Array<{ role?: string; content?: unknown }>;
+}): number {
+  let total = 0;
+  if (params.system && params.system.trim()) {
+    total += estimateTokens({ role: "system", content: params.system });
+  }
+  for (const message of params.messages ?? []) {
+    total += estimateTokens(message as Parameters<typeof estimateTokens>[0]);
+  }
+  return Math.ceil(total * SAFETY_MARGIN);
+}
+
+export function calculateCappedMaxTokens(params: {
+  requestedMaxTokens?: number;
+  modelMaxTokens?: number;
+  contextWindow?: number;
+  inputTokens: number;
+}): number | undefined {
+  const contextWindow =
+    typeof params.contextWindow === "number" && params.contextWindow > 0
+      ? params.contextWindow
+      : undefined;
+  if (!contextWindow) {
+    return undefined;
+  }
+
+  const remaining = Math.max(contextWindow - params.inputTokens, 0);
+  if (remaining <= 0) {
+    return 0;
+  }
+
+  let target =
+    typeof params.requestedMaxTokens === "number" && params.requestedMaxTokens > 0
+      ? params.requestedMaxTokens
+      : typeof params.modelMaxTokens === "number" && params.modelMaxTokens > 0
+        ? params.modelMaxTokens
+        : remaining;
+
+  if (typeof params.modelMaxTokens === "number" && params.modelMaxTokens > 0) {
+    target = Math.min(target, params.modelMaxTokens);
+  }
+
+  const capped = Math.min(target, remaining);
+  if (capped <= 0) {
+    return 0;
+  }
+  return capped;
+}
+
+function createMaxTokensCapWrapper(
+  baseStreamFn: StreamFn | undefined,
+  provider: string,
+  modelId: string,
+): StreamFn {
+  const underlying = baseStreamFn ?? streamSimple;
+  return (model, context, options) => {
+    const contextWindow = resolveModelContextWindow(model, provider, modelId);
+    const modelMaxTokens = resolveModelMaxTokens(model, provider, modelId);
+    if (!contextWindow) {
+      return underlying(model, context, options);
+    }
+
+    const inputTokens = estimateInputTokens({
+      system: (context as { system?: string })?.system,
+      messages: (context as { messages?: Array<{ role?: string; content?: unknown }> })?.messages,
+    });
+    const cappedMaxTokens = calculateCappedMaxTokens({
+      requestedMaxTokens: options?.maxTokens,
+      modelMaxTokens,
+      contextWindow,
+      inputTokens,
+    });
+    if (cappedMaxTokens === undefined) {
+      return underlying(model, context, options);
+    }
+
+    if (typeof options?.maxTokens === "number" && cappedMaxTokens < options.maxTokens) {
+      log.debug(
+        `capping maxTokens for ${provider}/${modelId} from ${options.maxTokens} to ${cappedMaxTokens}`,
+      );
+    }
+
+    const nextOptions =
+      cappedMaxTokens !== undefined ? { ...options, maxTokens: cappedMaxTokens } : options;
+    return underlying(model, context, nextOptions);
+  };
+}
+
 /**
  * Create a streamFn wrapper that adds OpenRouter app attribution headers.
  * These headers allow OpenClaw to appear on OpenRouter's leaderboard.
@@ -148,6 +272,8 @@ export function applyExtraParamsToAgent(
     log.debug(`applying extraParams to agent streamFn for ${provider}/${modelId}`);
     agent.streamFn = wrappedStreamFn;
   }
+
+  agent.streamFn = createMaxTokensCapWrapper(agent.streamFn, provider, modelId);
 
   if (provider === "openrouter") {
     log.debug(`applying OpenRouter app attribution headers for ${provider}/${modelId}`);
